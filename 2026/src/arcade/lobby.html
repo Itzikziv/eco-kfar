@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#0d0b1f; --card:#1a1640; --neon:#ff3cac; --cyan:#2bd2ff; --text:#f2f0ff; --dim:#9a94c9; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:"Rubik", Arial, sans-serif; padding:16px; }
+    header { display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:24px; }
+    #logo { max-height:90px; max-width:240px; display:none; background:#fff; padding:6px 10px; border-radius:10px; }
+    h1 { text-align:center; font-size:clamp(30px,7vw,58px); font-weight:900; margin:4px 0;
+         color:var(--neon); text-shadow:0 0 12px var(--neon); letter-spacing:2px; }
+    .sub { text-align:center; color:var(--dim); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+            gap:18px; max-width:1200px; margin:0 auto; }
+    .cab { background:var(--card); border:2px solid var(--cyan); border-radius:14px;
+           padding:16px; box-shadow:0 0 14px rgba(43,210,255,.25); display:flex; flex-direction:column; }
+    .icon { font-size:48px; text-align:center; }
+    .title { font-size:22px; font-weight:700; text-align:center; margin:6px 0 2px; }
+    .group { color:var(--dim); text-align:center; font-size:14px; }
+    .desc { font-size:15px; margin:10px 0; min-height:36px; }
+    .play { display:block; text-align:center; background:var(--neon); color:#fff; text-decoration:none;
+            font-weight:700; padding:10px; border-radius:8px; font-size:19px; }
+    .play:hover { filter:brightness(1.15); }
+    .board { margin-top:12px; font-size:15px; }
+    .board h4 { margin:0 0 4px; color:var(--cyan); }
+    .board ol { margin:0; padding-right:22px; padding-left:0; }
+    .num { direction:ltr; unicode-bidi:isolate; }
+    .empty { color:var(--dim); font-style:italic; }
+    .meta { color:var(--dim); font-size:13px; margin-top:8px; text-align:left; }
+    #status { text-align:center; color:var(--dim); margin-top:20px; font-size:13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <img id="logo" alt="">
+    <h1>★ הארקייד של בית הספר ★</h1>
+    <div class="sub" id="sub">משחקים שבנו תלמידי מדעי המחשב ביום אחד</div>
+  </header>
+  <div class="grid" id="grid"><div class="empty">טוען משחקים…</div></div>
+  <div id="status"></div>
+
+<script>
+  /* ===== School branding: set these two ===== */
+  const SCHOOL_NAME = 'הכפר הירוק';
+  const SCHOOL_LOGO = 'https://kfaryarok.org.il/wp-content/uploads/2021/06/%D7%9C%D7%95%D7%92%D7%952024-copy.png';   // image URL, or a data:image/... string
+
+  if (SCHOOL_LOGO) { const l = document.getElementById('logo'); l.src = SCHOOL_LOGO; l.alt = SCHOOL_NAME; l.style.display = 'block'; }
+  if (SCHOOL_NAME) { document.getElementById('sub').textContent = 'משחקים שבנו תלמידי מדעי המחשב של ' + SCHOOL_NAME + ' ביום אחד'; }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
+  function render(games) {
+    const grid = document.getElementById('grid');
+    if (!games.length) {
+      grid.innerHTML = '<div class="empty">אין עדיין משחקים. הוסיפו שורות בלשונית Games.</div>';
+      return;
+    }
+    grid.innerHTML = games.map(g => {
+      const top = g.top.length
+        ? '<ol>' + g.top.map(t => `<li><bdi>${esc(t.player)}</bdi> — <span class="num">${esc(t.score)}</span></li>`).join('') + '</ol>'
+        : '<div class="empty">אין עדיין תוצאות. היו הראשונים!</div>';
+      return `
+        <div class="cab">
+          <div class="icon">${esc(g.icon)}</div>
+          <div class="title"><bdi>${esc(g.title)}</bdi></div>
+          <div class="group">נבנה ע"י <bdi>${esc(g.group)}</bdi></div>
+          <div class="desc">${esc(g.description)}</div>
+          <a class="play" href="${esc(g.url)}" target="_blank" rel="noopener">▶ שחקו</a>
+          <div class="board"><h4>5 המובילים</h4>${top}</div>
+          <div class="meta">${g.plays} משחקים</div>
+        </div>`;
+    }).join('');
+    document.getElementById('status').textContent =
+      'עודכן ב-' + new Date().toLocaleTimeString('he-IL') + ' · מתעדכן כל 15 שניות';
+  }
+
+  const IN_APPS_SCRIPT = typeof google !== 'undefined' && !!(google.script && google.script.run);
+  function showLocalBanner(text) {
+    const b = document.createElement('div');
+    b.textContent = text;
+    b.style.cssText = 'background:#ffd23f;color:#000;padding:8px 12px;border-radius:6px;margin:0 auto 14px;' +
+                      'max-width:1000px;font-weight:700;text-align:center;';
+    document.body.prepend(b);
+  }
+  
+  // Sample data for local preview; games link to the files in the student folder
+  const DEMO = [
+    { id:'reaction', title:'זמן תגובה', group:'קבוצה 3', icon:'⚡', description:'חכו לירוק ולחצו הכי מהר',
+      url:'games/reaction.html', plays:12, top:[{ player:'דנה', score:231 }, { player:'Omer', score:265 }] },
+    { id:'caesar', title:'מרוץ קיסר', group:'קבוצה 5', icon:'🔐', description:'פענחו מילים מוצפנות',
+      url:'games/caesar.html', plays:4, top:[] }
+  ];
+
+  function refresh() {
+    if (!IN_APPS_SCRIPT) { render(DEMO); return; }
+    google.script.run
+      .withSuccessHandler(render)
+      .withFailureHandler(err => {
+        document.getElementById('status').textContent = 'שגיאה בטעינה: ' + err.message;
+      })
+      .getArcadeData();
+  }
+
+  if (!IN_APPS_SCRIPT) showLocalBanner('תצוגה מקומית: נתונים לדוגמה. הנתונים האמיתיים יופיעו כשהדף ירוץ ב-Apps Script.');
+  refresh();
+  if (IN_APPS_SCRIPT) setInterval(refresh, 15000);
+</script>
+</body>
+</html>

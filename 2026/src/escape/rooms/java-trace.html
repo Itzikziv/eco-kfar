@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#050a05; --panel:#0c160c; --green:#33ff66; --dim:#5fa36f; --red:#ff4d4d; --gold:#ffd23f; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--green); font-family:"Rubik", Arial, sans-serif;
+         padding:16px; line-height:1.6; }
+  .wrap { max-width:760px; margin:0 auto; }
+  h1 { font-size:clamp(24px,6vw,40px); margin:6px 0; text-shadow:0 0 10px var(--green); }
+  .story { color:var(--dim); white-space:pre-line; font-size:17px; }
+  .puzzle { border:1px solid var(--green); background:var(--panel); padding:14px; border-radius:6px; margin:18px 0;
+            overflow-x:auto; }
+  pre, code { font-family:"Courier New", monospace; direction:ltr; unicode-bidi:isolate; }
+  pre { margin:0; color:#d6ffe0; font-size:15px; text-align:left; }
+  #guess { direction:ltr; font-family:"Courier New", monospace; }
+  .ltr { direction:ltr; unicode-bidi:isolate; }
+  input { font:inherit; font-size:18px; background:#000; color:var(--green); border:1px solid var(--green);
+          padding:8px; border-radius:4px; width:100%; max-width:320px; margin:4px 0; }
+  button { font:inherit; font-size:17px; background:var(--green); color:#000; border:none; padding:8px 16px;
+           border-radius:4px; cursor:pointer; font-weight:bold; margin:4px 4px 4px 0; }
+  button.ghost { background:transparent; color:var(--dim); border:1px dashed var(--dim); }
+  #result { font-size:20px; margin-top:12px; min-height:28px; }
+  .hint { color:var(--gold); margin:4px 0; }
+  .fragment { font-size:48px; color:var(--gold); text-shadow:0 0 14px var(--gold); letter-spacing:6px; }
+  .blink { animation:blink 1s steps(1) infinite; } @keyframes blink { 50% { opacity:0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title"></h1>
+  <p class="story" id="story"></p>
+  <div class="puzzle" id="puzzle"></div>
+
+  <div>שם הצוות:</div>
+  <input id="team" maxlength="30">
+  <div>התשובה שלכם:</div>
+  <input id="guess" maxlength="60" onkeydown="if (event.key === 'Enter') submit()">
+  <div>
+    <button onclick="submit()">שלחו</button>
+    <button class="ghost" onclick="nextHint()">רמז (נשארו <span id="hintsLeft"></span>)</button>
+  </div>
+  <div id="hints"></div>
+  <div id="result"><span class="blink">_</span></div>
+  <p><a id="backLink" target="_top" style="display:none;color:var(--gold)">→ חזרה ללובי החדרים</a></p>
+</div>
+
+<script>
+/* =====================================================================
+   YOUR ROOM STARTS HERE
+   - TITLE / STORY / HINTS: in Hebrew. Code and English words stay English.
+   - TITLE / STORY: set the mood.
+   - PUZZLE_HTML: the puzzle itself. Text is enough! Use <pre> for code.
+   - HINTS: shown one at a time, from vague to obvious.
+   The ANSWER is NOT here, and never in this repo. Send it to the teacher,
+   who keeps it in the spreadsheet where players can't see it.
+   ===================================================================== */
+// ROOM_ID: lowercase, no spaces. The room file is saved as escape/rooms/<ROOM_ID>.html
+const ROOM_ID = 'java-trace';
+
+const TITLE = 'חדר 2: מסוף ה-Java';
+const STORY = `מסוף ישן ומאובק עדיין מריץ תוכנית Java.
+הסיסמה היא הפלט של התוכנית: מה שיופיע על המסך אחרי System.out.println.
+מצאו את הפלט (במעקב ביד, או בהרצה ב-IDE) והקלידו אותו בתיבת התשובה.`;
+const PUZZLE_HTML = `<pre>
+String s = "";
+for (int i = 1; i &lt;= 5; i++) {
+    if (i % 2 == 0)
+        s += i * 3;
+    else
+        s += (char) ('A' + i);
+}
+System.out.println(s);
+</pre>`;
+const HINTS = [
+  'בנו טבלת מעקב קטנה: הערך של i, ומה מתווסף ל-s בכל סיבוב.',
+  "(char)('A' + 1) הוא 'B'. כש-i זוגי מתווסף מספר, לא אות.",
+  'בתשובה יש 6 תווים: אותיות ומספרים מעורבבים.'
+];
+
+/* =====================================================================
+   SHELL — no need to change below
+   ===================================================================== */
+document.getElementById('title').textContent = TITLE;
+if (typeof google !== 'undefined' && google.script) {
+  google.script.run.withSuccessHandler(url => {
+    const a = document.getElementById('backLink');
+    a.href = url + '?page=escape';
+    a.style.display = 'inline';
+  }).getBaseUrl();
+}
+document.getElementById('story').textContent = STORY;
+document.getElementById('puzzle').innerHTML = PUZZLE_HTML;
+
+let hintIndex = 0;
+function updateHintCount() { document.getElementById('hintsLeft').textContent = HINTS.length - hintIndex; }
+function nextHint() {
+  if (hintIndex >= HINTS.length) return;
+  const div = document.createElement('div');
+  div.className = 'hint';
+  div.textContent = '💡 ' + HINTS[hintIndex++];
+  document.getElementById('hints').appendChild(div);
+  updateHintCount();
+}
+updateHintCount();
+
+function submit() {
+  const team = document.getElementById('team').value.trim();
+  const guess = document.getElementById('guess').value.trim();
+  const out = document.getElementById('result');
+  if (!team)  { out.textContent = 'קודם הקלידו את שם הצוות.'; return; }
+  if (!guess) { return; }
+  if (typeof google === 'undefined' || !google.script) {
+    out.textContent = 'תצוגה מקומית: התשובה נבדקת רק כשהחדר רץ ב-Apps Script.';
+    return;
+  }
+  out.textContent = 'בודק…';
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.correct) {
+        out.innerHTML = 'הגישה אושרה! החלק שלכם בקוד הראשי:<div class="fragment ltr"></div>' +
+                        'רשמו אותו וחזרו ללובי.';
+        out.querySelector('.fragment').textContent = res.fragment;
+      } else {
+        out.innerHTML = '<span style="color:var(--red)">הגישה נדחתה. נסו שוב.</span>';
+      }
+    })
+    .withFailureHandler(e => out.textContent = 'שגיאה: ' + e.message)
+    .checkAnswer(ROOM_ID, team, guess);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  /* ===== Shared arcade look. Change colors if you like. ===== */
+  :root { --bg:#0d0b1f; --panel:#1a1640; --accent:#ff3cac; --accent2:#2bd2ff; --text:#f2f0ff; --dim:#9a94c9; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text);
+               font-family:"Rubik", Arial, sans-serif; user-select:none; -webkit-user-select:none; }
+  .screen { position:fixed; inset:0; display:none; flex-direction:column; align-items:center;
+            justify-content:center; text-align:center; padding:20px; gap:14px; }
+  .screen.active { display:flex; }
+  h1 { color:var(--accent); text-shadow:0 0 10px var(--accent); font-size:clamp(28px,7vw,56px); margin:0; }
+  p  { max-width:520px; color:var(--dim); margin:0; }
+  input { font:inherit; font-size:20px; padding:10px; border-radius:8px; border:2px solid var(--accent2);
+          background:var(--panel); color:var(--text); text-align:center; width:240px; }
+  button { font:inherit; font-size:22px; font-weight:bold; padding:12px 28px; border:none; border-radius:10px;
+           background:var(--accent); color:#fff; cursor:pointer; }
+  #hud { position:fixed; top:0; left:0; right:0; display:flex; justify-content:space-between;
+         padding:10px 16px; font-size:20px; z-index:5; pointer-events:none; }
+  #game { position:fixed; inset:0; }
+  .ltr { direction:ltr; unicode-bidi:isolate; }
+  #saveMsg { color:var(--dim); font-size:14px; min-height:18px; }
+</style>
+</head>
+<body>
+
+<!-- ===== START SCREEN ===== -->
+<div class="screen active" id="startScreen">
+  <h1 id="gameTitle">המשחק שלנו</h1>
+  <p id="gameHelp">כאן מסבירים איך משחקים.</p>
+  <input id="playerName" maxlength="20" placeholder="השם שלכם">
+  <button onclick="startGame()">התחילו</button>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div class="screen" id="gameScreen">
+  <div id="hud"><span id="hudLeft"></span><span id="hudRight"></span></div>
+  <div id="game"></div>
+</div>
+
+<!-- ===== GAME OVER SCREEN ===== -->
+<div class="screen" id="overScreen">
+  <h1>המשחק נגמר</h1>
+  <p>הניקוד שלכם</p>
+  <div id="finalScore" class="ltr" style="font-size:56px;color:var(--accent2)"></div>
+  <div id="saveMsg"></div>
+  <button onclick="startGame()">שחקו שוב</button>
+  <a id="backLink" target="_top" style="display:none;color:var(--accent2);margin-top:8px">→ חזרה לארקייד</a>
+</div>
+
+<script>
+/* =====================================================================
+   GAME_ID: a short name for your game, lowercase, no spaces.
+   The file goes in the repo as  2026/src/arcade/games/<GAME_ID>.html
+   ===================================================================== */
+const GAME_ID = 'reaction';
+
+/* =====================================================================
+   SHELL — you don't need to change this part
+   ===================================================================== */
+// true when running inside the teacher's Apps Script arcade,
+// false when you open this file locally by double-clicking it
+const IN_ARCADE = typeof google !== 'undefined' && !!(google.script && google.script.run);
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function hud(left, right) {
+  document.getElementById('hudLeft').textContent = left ?? '';
+  document.getElementById('hudRight').textContent = right ?? '';
+}
+function playerName() {
+  return document.getElementById('playerName').value.trim() || 'אנונימי';
+}
+let gameRunning = false;
+
+function startGame() {
+  show('gameScreen');
+  gameRunning = true;
+  setupGame(document.getElementById('game'));
+}
+
+function gameOver(score) {
+  if (!gameRunning) return;          // protects against calling it twice
+  gameRunning = false;
+  document.getElementById('finalScore').textContent = score;
+  const msg = document.getElementById('saveMsg');
+  show('overScreen');
+
+  if (!IN_ARCADE) {                  // opened by double-click on your computer
+    msg.textContent = 'בדיקה מקומית: הניקוד לא נשמר. (בארקייד הוא יישמר.)';
+    return;
+  }
+  msg.textContent = 'שומר ניקוד…';
+  google.script.url.getLocation(loc => {
+    const id = loc.parameter.game || GAME_ID;
+    google.script.run
+      .withSuccessHandler(() => msg.textContent = 'הניקוד נשמר בארקייד ✔')
+      .withFailureHandler(e => msg.textContent = 'השמירה נכשלה: ' + e.message)
+      .submitScore(id, playerName(), score);
+  });
+}
+
+// Inside the arcade, show a link back to the lobby
+if (IN_ARCADE) {
+  google.script.run.withSuccessHandler(url => {
+    const a = document.getElementById('backLink');
+    a.href = url + '?page=arcade';
+    a.style.display = 'inline-block';
+  }).getBaseUrl();
+}
+
+/* =====================================================================
+   GAME: REACTION TIME  (example game — easy level)
+   Score = average reaction time in ms over 5 rounds. LOWER is better,
+   so in the "Games" tab this game has lowerIsBetter = TRUE.
+   Ideas for students to extend:
+     - fake "yellow" flashes that you must NOT tap
+     - more rounds, harder random delays
+   ===================================================================== */
+document.getElementById('gameTitle').textContent = 'זמן תגובה';
+document.getElementById('gameHelp').textContent  =
+  'חכו לירוק, ואז לחצו הכי מהר שאפשר. 5 סיבובים. לחיצה על אדום = קנס של 500 ms.';
+
+const ROUNDS = 5;
+const PENALTY_MS = 500;
+
+function setupGame(area) {
+  area.innerHTML = '';
+  const box = document.createElement('div');
+  box.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;' +
+                      'font-size:clamp(28px,8vw,64px);font-weight:bold;cursor:pointer;';
+  area.appendChild(box);
+
+  let round = 0;
+  let times = [];
+  let state = 'idle';          // 'waiting' (red) | 'go' (green) | 'between'
+  let greenAt = 0;
+  let timeout = null;
+
+  function nextRound() {
+    round++;
+    hud('סיבוב ' + round + ' מתוך ' + ROUNDS, '');
+    state = 'waiting';
+    box.style.background = '#c0263d';
+    box.textContent = 'חכו…';
+    const delay = 1000 + Math.random() * 3000;      // 1–4 seconds
+    timeout = setTimeout(() => {
+      state = 'go';
+      box.style.background = '#1db954';
+      box.textContent = 'עכשיו!';
+      greenAt = performance.now();
+    }, delay);
+  }
+
+  box.addEventListener('pointerdown', () => {
+    if (!gameRunning) return;
+    if (state === 'waiting') {                 // too early
+      clearTimeout(timeout);
+      times.push(PENALTY_MS + 1000);
+      showResult('מוקדם מדי! קנס ' + PENALTY_MS + ' ms');
+    } else if (state === 'go') {
+      const ms = Math.round(performance.now() - greenAt);
+      times.push(ms);
+      showResult(ms + ' ms');
+    }
+  });
+
+  function showResult(text) {
+    state = 'between';
+    box.style.background = '#1a1640';
+    box.textContent = text;
+    setTimeout(() => {
+      if (round < ROUNDS) {
+        nextRound();
+      } else {
+        const avg = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+        gameOver(avg);
+      }
+    }, 900);
+  }
+
+  nextRound();
+}
+</script>
+</body>
+</html>

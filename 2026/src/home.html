@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0d0b1f; --text:#f2f0ff; --dim:#9a94c9; --neon:#ff3cac; --cyan:#2bd2ff; --green:#33ff66; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:"Rubik", Arial, sans-serif;
+         display:flex; flex-direction:column; align-items:center; padding:24px 16px; gap:10px; }
+  #logo { max-height:100px; max-width:260px; background:#fff; padding:8px 12px; border-radius:12px; }
+  h1 { font-size:clamp(30px,7vw,56px); font-weight:900; margin:10px 0 0; text-align:center; }
+  .sub { color:var(--dim); text-align:center; margin-bottom:20px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px; width:100%; max-width:800px; }
+  a.card { display:block; text-decoration:none; color:var(--text); border-radius:16px; padding:28px 20px;
+           text-align:center; border:2px solid; transition:transform .15s; }
+  a.card:hover { transform:translateY(-4px); }
+  .card .icon { font-size:64px; }
+  .card h2 { margin:8px 0 4px; font-size:30px; }
+  .card p { margin:0; color:var(--dim); }
+  .arcade { border-color:var(--neon); box-shadow:0 0 18px rgba(255,60,172,.35); }
+  .arcade h2 { color:var(--neon); }
+  .escape { border-color:var(--green); box-shadow:0 0 18px rgba(51,255,102,.25); background:#050a05; }
+  .escape h2 { color:var(--green); }
+</style>
+</head>
+<body>
+  <img id="logo" alt="הכפר הירוק"
+       src="https://kfaryarok.org.il/wp-content/uploads/2021/06/%D7%9C%D7%95%D7%92%D7%952024-copy.png">
+  <h1>יום מדעי המחשב 2026</h1>
+  <div class="sub">הכפר הירוק · נבנה ע"י תלמידי י׳–י״ב</div>
+
+  <div class="cards">
+    <a class="card arcade" id="toArcade" href="arcade/lobby.html">
+      <div class="icon">🕹️</div>
+      <h2>הארקייד</h2>
+      <p>משחקים שבנו הקבוצות, עם טבלת שיאים</p>
+    </a>
+    <a class="card escape" id="toEscape" href="escape/lobby.html">
+      <div class="icon">🔐</div>
+      <h2>בריחה מהמעבדה</h2>
+      <p>פתרו את החדרים ופרצו את הדלת האחרונה</p>
+    </a>
+  </div>
+
+<script>
+  // Inside Apps Script, point the cards at the web app's own pages.
+  // Opened locally, the relative links above open the lobby files directly.
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    google.script.run.withSuccessHandler(url => {
+      document.getElementById('toArcade').href = url + '?page=arcade';
+      document.getElementById('toEscape').href = url + '?page=escape';
+    }).getBaseUrl();
+  }
+</script>
+</body>
+</html>

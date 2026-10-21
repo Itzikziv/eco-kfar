@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#050a05; --panel:#0c160c; --green:#33ff66; --dim:#5fa36f; --red:#ff4d4d; --gold:#ffd23f; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--green); font-family:"Rubik", Arial, sans-serif; padding:16px; }
+  .wrap { max-width:1000px; margin:0 auto; }
+  header { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  #logo { max-height:80px; max-width:200px; display:none; background:#fff; padding:6px 10px; border-radius:10px; }
+  h1 { font-size:clamp(28px,6vw,48px); font-weight:900; margin:6px 0; text-shadow:0 0 10px var(--green); }
+  h2 { border-bottom:1px dashed var(--dim); padding-bottom:4px; margin-top:28px; }
+  .story { color:var(--dim); font-size:17px; }
+  .rooms { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+  .room { border:1px solid var(--green); background:var(--panel); padding:12px; border-radius:6px; }
+  .room a { color:var(--gold); font-weight:700; text-decoration:none; font-size:19px; }
+  .room small { color:var(--dim); display:block; margin-top:4px; }
+  table { border-collapse:collapse; width:100%; font-size:16px; }
+  th, td { border:1px solid #1e3a1e; padding:6px 8px; text-align:center; }
+  th:first-child, td:first-child { text-align:right; }
+  .ok { color:var(--green); } .no { color:#244a24; }
+  .escaped td { background:#1c2a05; color:var(--gold); }
+  .door { border:2px solid var(--gold); padding:16px; border-radius:8px; background:var(--panel); }
+  input { font:inherit; font-size:18px; background:#000; color:var(--green); border:1px solid var(--green);
+          padding:8px; border-radius:4px; width:220px; }
+  #code { direction:ltr; text-transform:uppercase; font-family:"Courier New", monospace; letter-spacing:3px; }
+  button { font:inherit; font-size:18px; background:var(--green); color:#000; border:none; padding:8px 18px;
+           border-radius:4px; cursor:pointer; font-weight:700; }
+  #doorMsg { margin-top:10px; min-height:24px; font-size:19px; }
+  #status { color:var(--dim); font-size:13px; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img id="logo" alt="">
+    <h1>בריחה מהמעבדה_</h1>
+  </header>
+  <p class="story">שרת בית הספר נעל את עצמו. בכל חדר מסתתר חלק אחד מהקוד הראשי.
+    פתרו את כל החדרים, חברו את החלקים לפי סדר החדרים, והקלידו את הקוד הראשי למטה כדי לברוח.</p>
+
+  <h2>החדרים</h2>
+  <div class="rooms" id="rooms">טוען…</div>
+
+  <h2>התקדמות בזמן אמת</h2>
+  <div id="board">טוען…</div>
+
+  <h2>הדלת האחרונה</h2>
+  <div class="door">
+    <div>שם הצוות: <input id="team" maxlength="30"></div><br>
+    <div>הקוד הראשי: <input id="code" maxlength="40"> <button onclick="tryDoor()">פתחו</button></div>
+    <div id="doorMsg"></div>
+  </div>
+  <div id="status"></div>
+</div>
+
+<script>
+/* ===== School branding ===== */
+const SCHOOL_NAME = 'הכפר הירוק';
+const SCHOOL_LOGO = 'https://kfaryarok.org.il/wp-content/uploads/2021/06/%D7%9C%D7%95%D7%92%D7%952024-copy.png';
+if (SCHOOL_LOGO) { const l = document.getElementById('logo'); l.src = SCHOOL_LOGO; l.alt = SCHOOL_NAME; l.style.display = 'block'; }
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function render(data) {
+  document.getElementById('rooms').innerHTML = data.rooms.length
+    ? data.rooms.map((r, i) => `
+        <div class="room">
+          <a href="${esc(r.url)}" target="_blank" rel="noopener">[${i + 1}] <bdi>${esc(r.title)}</bdi></a>
+          <small>נבנה ע"י <bdi>${esc(r.group)}</bdi></small>
+        </div>`).join('')
+    : 'אין עדיין חדרים. הוסיפו שורות בלשונית Rooms.';
+
+  if (!data.board.length) {
+    document.getElementById('board').innerHTML = '<span class="story">אף צוות עוד לא התחיל.</span>';
+  } else {
+    const head = '<tr><th>צוות</th>' + data.rooms.map((r, i) => `<th>${i + 1}</th>`).join('') +
+                 '<th>ניסיונות</th><th>מצב</th></tr>';
+    const rows = data.board.map(t => `
+      <tr class="${t.escaped ? 'escaped' : ''}">
+        <td><bdi>${esc(t.team)}</bdi></td>
+        ${t.solved.map(s => s ? '<td class="ok">■</td>' : '<td class="no">□</td>').join('')}
+        <td>${t.tries}</td>
+        <td>${t.escaped ? '🏆 ברחו!' : t.count + ' מתוך ' + data.rooms.length}</td>
+      </tr>`).join('');
+    document.getElementById('board').innerHTML = '<table>' + head + rows + '</table>';
+  }
+  document.getElementById('status').textContent = 'עודכן ב-' + new Date().toLocaleTimeString('he-IL');
+}
+
+const IN_APPS_SCRIPT = typeof google !== 'undefined' && !!(google.script && google.script.run);
+function showLocalBanner(text) {
+  const b = document.createElement('div');
+  b.textContent = text;
+  b.style.cssText = 'background:#ffd23f;color:#000;padding:8px 12px;border-radius:6px;margin:0 auto 14px;' +
+                    'max-width:1000px;font-weight:700;text-align:center;';
+  document.body.prepend(b);
+}
+
+// Sample data for local preview (opened by double-click, not from Apps Script)
+const DEMO = {
+  rooms: [
+    { id:'caesar', title:'המעבדה המוצפנת', group:'קבוצה 1', url:'rooms/caesar.html' },
+    { id:'java-trace', title:'מסוף ה-Java', group:'קבוצה 2', url:'rooms/java-trace.html' }
+  ],
+  board: [
+    { team:'הכחולים', tries:5, solved:[true, true],  count:2, escaped:true },
+    { team:'Red Team', tries:3, solved:[true, false], count:1, escaped:false }
+  ]
+};
+const DEMO_MASTER = '7K';
+
+function refresh() {
+  if (!IN_APPS_SCRIPT) { render(DEMO); return; }
+  google.script.run.withSuccessHandler(render)
+    .withFailureHandler(e => document.getElementById('status').textContent = 'שגיאה: ' + e.message)
+    .getEscapeData();
+}
+
+function tryDoor() {
+  const team = document.getElementById('team').value.trim();
+  const code = document.getElementById('code').value;
+  const msg = document.getElementById('doorMsg');
+  if (!team) { msg.textContent = 'קודם הקלידו את שם הצוות.'; return; }
+  if (!IN_APPS_SCRIPT) {
+    const ok = code.trim().toUpperCase().replace(/\s+/g, '') === DEMO_MASTER;
+    msg.innerHTML = ok ? '<span style="color:var(--gold)">הגישה אושרה (תצוגה מקומית, הקוד בדמו: 7K) 🏆</span>'
+                       : '<span style="color:var(--red)">הגישה נדחתה (בתצוגה מקומית הקוד הוא 7K).</span>';
+    return;
+  }
+  msg.textContent = 'בודק…';
+  google.script.run.withSuccessHandler(ok => {
+    msg.innerHTML = ok
+      ? '<span style="color:var(--gold)">הגישה אושרה. ברחתם! 🏆</span>'
+      : '<span style="color:var(--red)">הגישה נדחתה. בדקו את סדר החלקים.</span>';
+    refresh();
+  }).checkMaster(team, code);
+}
+
+if (!IN_APPS_SCRIPT) showLocalBanner('תצוגה מקומית: נתונים לדוגמה. הנתונים האמיתיים יופיעו כשהדף ירוץ ב-Apps Script.');
+refresh();
+if (IN_APPS_SCRIPT) setInterval(refresh, 15000);
+</script>
+</body>
+</html>
