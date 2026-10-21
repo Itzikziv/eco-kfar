@@ -16,6 +16,8 @@ Everything is logged in one Google Sheet: scores, every guess, every escape.
 
 ```
 .clasp.json            the Apps Script project (script ID); clasp pushes src/
+deploy.sh              pull + push + deploy in one command
+.deployment-id         the web app's deployment ID (created on first deploy)
 src/                   exactly what goes to Apps Script
   Code.gs              router: which page each link shows
   Data.gs              the spreadsheet: setup() + helpers
@@ -76,13 +78,21 @@ change `"access"` in `src/appsscript.json` to `"DOMAIN"`.
 
 ```bash
 cd 2026
+./deploy.sh "short note"
+```
+
+The script runs `git pull`, `clasp push` and `clasp deploy` on the existing deployment,
+so the URL never changes. The first time, it asks you to save the deployment ID in
+`2026/.deployment-id` (run `clasp deployments` and take the ID that is **not** `@HEAD`).
+
+The same by hand:
+
+```bash
 git pull
 clasp push
 clasp deploy -i <deployment ID> -d "short note"
 ```
 
-`clasp deploy -i` updates the existing deployment, so the URL never changes.
-(Without `-i` it creates a new URL.)
 To check changes before they go live, use Deploy → Test deployments in the editor:
 that link always runs the latest pushed code.
 
