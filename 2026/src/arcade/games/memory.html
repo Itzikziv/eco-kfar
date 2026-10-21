@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  /* ===== Shared arcade look. Change colors if you like. ===== */
+  :root { --bg:#0d0b1f; --panel:#1a1640; --accent:#ff3cac; --accent2:#2bd2ff; --text:#f2f0ff; --dim:#9a94c9; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text);
+               font-family:"Rubik", Arial, sans-serif; user-select:none; -webkit-user-select:none; }
+  .screen { position:fixed; inset:0; display:none; flex-direction:column; align-items:center;
+            justify-content:center; text-align:center; padding:20px; gap:14px; }
+  .screen.active { display:flex; }
+  h1 { color:var(--accent); text-shadow:0 0 10px var(--accent); font-size:clamp(28px,7vw,56px); margin:0; }
+  p  { max-width:520px; color:var(--dim); margin:0; }
+  input { font:inherit; font-size:20px; padding:10px; border-radius:8px; border:2px solid var(--accent2);
+          background:var(--panel); color:var(--text); text-align:center; width:240px; }
+  button { font:inherit; font-size:22px; font-weight:bold; padding:12px 28px; border:none; border-radius:10px;
+           background:var(--accent); color:#fff; cursor:pointer; }
+  #hud { position:fixed; top:0; left:0; right:0; display:flex; justify-content:space-between;
+         padding:10px 16px; font-size:20px; z-index:5; pointer-events:none; }
+  #game { position:fixed; inset:0; }
+  .ltr { direction:ltr; unicode-bidi:isolate; }
+  #saveMsg { color:var(--dim); font-size:14px; min-height:18px; }
+  #overNote { max-width:520px; font-size:18px; line-height:1.6; }
+  #overNote:empty { display:none; }
+</style>
+</head>
+<body>
+
+<!-- ===== START SCREEN ===== -->
+<div class="screen active" id="startScreen">
+  <h1 id="gameTitle">המשחק שלנו</h1>
+  <div id="gameHelp" style="max-width:560px;color:var(--dim);line-height:1.6">כאן מסבירים איך משחקים.</div>
+  <input id="playerName" maxlength="20" placeholder="השם שלכם">
+  <button onclick="startGame()">התחילו</button>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div class="screen" id="gameScreen">
+  <div id="hud"><span id="hudLeft"></span><span id="hudRight"></span></div>
+  <div id="game"></div>
+</div>
+
+<!-- ===== GAME OVER SCREEN ===== -->
+<div class="screen" id="overScreen">
+  <h1>המשחק נגמר</h1>
+  <p>הניקוד שלכם</p>
+  <div id="finalScore" class="ltr" style="font-size:56px;color:var(--accent2)"></div>
+  <div id="overNote"></div>
+  <div id="saveMsg"></div>
+  <button onclick="startGame()">שחקו שוב</button>
+  <a id="backLink" target="_top" style="display:none;color:var(--accent2);margin-top:8px">→ חזרה לארקייד</a>
+</div>
+
+<script>
+/* =====================================================================
+   GAME_ID: a short name for your game, lowercase, no spaces.
+   The file goes in the repo as  2026/src/arcade/games/<GAME_ID>.html
+   ===================================================================== */
+const GAME_ID = 'memory';
+
+/* =====================================================================
+   SHELL — you don't need to change this part
+   ===================================================================== */
+// true when running inside the teacher's Apps Script arcade,
+// false when you open this file locally by double-clicking it
+const IN_ARCADE = typeof google !== 'undefined' && !!(google.script && google.script.run);
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function hud(left, right) {
+  document.getElementById('hudLeft').textContent = left ?? '';
+  document.getElementById('hudRight').textContent = right ?? '';
+}
+function playerName() {
+  return document.getElementById('playerName').value.trim() || 'אנונימי';
+}
+let gameRunning = false;
+
+function startGame() {
+  show('gameScreen');
+  gameRunning = true;
+  setupGame(document.getElementById('game'));
+}
+
+// gameOver(score)        — ends the game
+// gameOver(score, note)  — optional note shown under the score (text or HTML)
+function gameOver(score, note) {
+  if (!gameRunning) return;          // protects against calling it twice
+  gameRunning = false;
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('overNote').innerHTML = note || '';
+  const msg = document.getElementById('saveMsg');
+  show('overScreen');
+
+  if (!IN_ARCADE) {                  // opened by double-click on your computer
+    msg.textContent = 'בדיקה מקומית: הניקוד לא נשמר. (בארקייד הוא יישמר.)';
+    return;
+  }
+  msg.textContent = 'שומר ניקוד…';
+  google.script.url.getLocation(loc => {
+    const id = loc.parameter.game || GAME_ID;
+    google.script.run
+      .withSuccessHandler(() => msg.textContent = 'הניקוד נשמר בארקייד ✔')
+      .withFailureHandler(e => msg.textContent = 'השמירה נכשלה: ' + e.message)
+      .submitScore(id, playerName(), score);
+  });
+}
+
+// Inside the arcade, show a link back to the lobby
+if (IN_ARCADE) {
+  google.script.run.withSuccessHandler(url => {
+    const a = document.getElementById('backLink');
+    a.href = url + '?page=arcade';
+    a.style.display = 'inline-block';
+  }).getBaseUrl();
+}
+
+/* =====================================================================
+   GAME: ASCII MEMORY  (example game — easy/medium level)
+   Classic memory game: find the pairs.
+   A pair = a character and its ASCII code, e.g.  'A' and 65.
+   Score = number of tries. LOWER is better (lowerIsBetter: true in Games.gs).
+   Ideas for students to extend:
+     - pairs of  Java code ↔ its output
+     - a timer, or more cards in level 2
+   ===================================================================== */
+document.getElementById('gameTitle').textContent = 'זיכרון ASCII';
+document.getElementById('gameHelp').innerHTML = `
+  <b style="color:var(--text)">מצאו את כל הזוגות: תו והקוד שלו בטבלת ASCII.</b><br>
+  למשל <span class="ltr" style="color:var(--accent2)">'A'</span> ו-<span class="ltr" style="color:var(--accent2)">65</span>,
+  או <span class="ltr" style="color:var(--accent2)">'a'</span> ו-<span class="ltr" style="color:var(--accent2)">97</span>.<br>
+  הפכו שני קלפים בכל תור. כמה שפחות ניסיונות = יותר טוב.<br>
+  רמז: האותיות הגדולות מתחילות ב-65, הקטנות ב-97, והספרות ב-48.`;
+
+const PAIRS = 6;
+
+function setupGame(area) {
+  // pick 6 different characters from A-Z, a-z, 0-9
+  const pool = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.split('');
+  shuffle(pool);
+  const chars = pool.slice(0, PAIRS);
+
+  // two cards per character: the char itself and its code
+  const cards = [];
+  chars.forEach((ch, i) => {
+    cards.push({ pair: i, text: "'" + ch + "'" });
+    cards.push({ pair: i, text: String(ch.charCodeAt(0)) });
+  });
+  shuffle(cards);
+
+  area.innerHTML = `
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:60px 12px 16px">
+      <div id="mGrid" dir="ltr" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+           width:min(520px,100%);"></div>
+    </div>`;
+  const grid = document.getElementById('mGrid');
+
+  let open = [], tries = 0, found = 0, busy = false;
+  const start = Date.now();
+
+  cards.forEach((c, i) => {
+    const el = document.createElement('div');
+    el.style.cssText = `aspect-ratio:3/4;border-radius:12px;display:flex;align-items:center;justify-content:center;
+                        font-size:clamp(20px,6vw,34px);font-weight:700;cursor:pointer;transition:transform .15s;`;
+    c.el = el;
+    hide(c);
+    el.addEventListener('pointerdown', () => flip(c));
+    grid.appendChild(el);
+  });
+
+  function hide(c) { c.el.textContent = '?'; c.el.style.background = 'var(--panel)'; c.el.style.color = 'var(--dim)';
+                     c.el.style.border = '2px solid var(--accent2)'; }
+  function reveal(c) { c.el.textContent = c.text; c.el.style.background = 'var(--accent2)'; c.el.style.color = '#000'; }
+
+  function flip(c) {
+    if (busy || c.done || open.includes(c)) return;
+    reveal(c);
+    open.push(c);
+    if (open.length < 2) return;
+
+    tries++;
+    hud('ניסיונות: ' + tries, 'זוגות: ' + found + '/' + PAIRS);
+    const [a, b] = open;
+    if (a.pair === b.pair) {
+      a.done = b.done = true;
+      a.el.style.background = b.el.style.background = '#1db954';
+      open = [];
+      found++;
+      hud('ניסיונות: ' + tries, 'זוגות: ' + found + '/' + PAIRS);
+      if (found === PAIRS) {
+        const secs = Math.round((Date.now() - start) / 1000);
+        setTimeout(() => gameOver(tries,
+          'כל הזוגות נמצאו ב-' + secs + ' שניות.<br>' +
+          (tries <= PAIRS + 2 ? '🏆 זיכרון של מחשב!' : 'הכי טוב שאפשר: ' + PAIRS + ' ניסיונות.')), 600);
+      }
+    } else {
+      busy = true;
+      setTimeout(() => { hide(a); hide(b); open = []; busy = false; }, 900);
+    }
+  }
+
+  hud('ניסיונות: 0', 'זוגות: 0/' + PAIRS);
+}
+
+// Fisher–Yates shuffle
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+</script>
+</body>
+</html>

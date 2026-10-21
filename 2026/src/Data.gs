@@ -28,13 +28,17 @@ function setup() {
   ensureSheet_(ss, 'Attempts', ['time', 'team', 'room', 'guess', 'correct']);
   ensureSheet_(ss, 'Escapes',  ['time', 'team', 'minutes since first attempt']);
   const answers = ensureSheet_(ss, 'Answers', ['room', 'answer', 'fragment']);
-  if (answers.getLastRow() === 1) {
-    // the two example rooms
-    answers.getRange(2, 1, 2, 3).setValues([
-      ['caesar', 'BYTE', '7'],
-      ['java-trace', 'B6D12F', 'K']
-    ]);
-  }
+  // Answers of the EXAMPLE rooms only. They are public in this repo, so they're
+  // demos. Real rooms' answers are typed straight into the sheet, never here.
+  // Adds only the rows that are missing: safe to run setup() again.
+  const EXAMPLE_ANSWERS = [
+    ['caesar',     'BYTE',    '7'],
+    ['java-trace', 'B6D12F',  'K'],
+    ['binary',     'GREEN',   '3'],
+    ['sum-lock',   '1189524', 'Z']
+  ];
+  const have = answers.getDataRange().getValues().map(r => String(r[0]));
+  EXAMPLE_ANSWERS.filter(r => !have.includes(r[0])).forEach(r => answers.appendRow(r));
 
   const first = ss.getSheets()[0];
   if (first.getName() === 'Sheet1' || first.getName() === 'גיליון1') ss.deleteSheet(first);

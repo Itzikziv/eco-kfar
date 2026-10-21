@@ -30,11 +30,15 @@
   button { font:inherit; font-size:18px; background:var(--green); color:#000; border:none; padding:8px 18px;
            border-radius:4px; cursor:pointer; font-weight:700; }
   #doorMsg { margin-top:10px; min-height:24px; font-size:19px; }
+  .homeBtn { display:inline-block; margin-bottom:8px; text-decoration:none; font-weight:700;
+         font-size:16px; padding:8px 14px; border-radius:10px; border:2px solid currentColor; background:rgba(0,0,0,.5); }
+  .homeBtn:hover { filter:brightness(1.2); }
   #status { color:var(--dim); font-size:13px; margin-top:16px; }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <a class="homeBtn" id="homeBtn" href="../home.html" target="_top" style="color:var(--green)">⌂ לדף הבית</a>
   <header>
     <img id="logo" alt="">
     <h1>בריחה מהמעבדה_</h1>
@@ -106,14 +110,16 @@ function showLocalBanner(text) {
 const DEMO = {
   rooms: [
     { id:'caesar', title:'המעבדה המוצפנת', group:'קבוצה 1', url:'rooms/caesar.html' },
-    { id:'java-trace', title:'מסוף ה-Java', group:'קבוצה 2', url:'rooms/java-trace.html' }
+    { id:'java-trace', title:'מסוף ה-Java', group:'קבוצה 2', url:'rooms/java-trace.html' },
+    { id:'binary', title:'האות מהלוויין', group:'קבוצה 3', url:'rooms/binary.html' },
+    { id:'sum-lock', title:'מנעול הסכום', group:'קבוצה 4', url:'rooms/sum-lock.html' }
   ],
   board: [
-    { team:'הכחולים', tries:5, solved:[true, true],  count:2, escaped:true },
-    { team:'Red Team', tries:3, solved:[true, false], count:1, escaped:false }
+    { team:'הכחולים', tries:9, solved:[true, true, true, true],  count:4, escaped:true },
+    { team:'Red Team', tries:4, solved:[true, false, true, false], count:2, escaped:false }
   ]
 };
-const DEMO_MASTER = '7K';
+const DEMO_MASTER = '7K3Z';
 
 function refresh() {
   if (!IN_APPS_SCRIPT) { render(DEMO); return; }
@@ -129,8 +135,8 @@ function tryDoor() {
   if (!team) { msg.textContent = 'קודם הקלידו את שם הצוות.'; return; }
   if (!IN_APPS_SCRIPT) {
     const ok = code.trim().toUpperCase().replace(/\s+/g, '') === DEMO_MASTER;
-    msg.innerHTML = ok ? '<span style="color:var(--gold)">הגישה אושרה (תצוגה מקומית, הקוד בדמו: 7K) 🏆</span>'
-                       : '<span style="color:var(--red)">הגישה נדחתה (בתצוגה מקומית הקוד הוא 7K).</span>';
+    msg.innerHTML = ok ? '<span style="color:var(--gold)">הגישה אושרה (תצוגה מקומית, הקוד בדמו: 7K3Z) 🏆</span>'
+                       : '<span style="color:var(--red)">הגישה נדחתה (בתצוגה מקומית הקוד הוא 7K3Z).</span>';
     return;
   }
   msg.textContent = 'בודק…';
@@ -142,6 +148,11 @@ function tryDoor() {
   }).checkMaster(team, code);
 }
 
+
+// "Home" button: the web app's home page in Apps Script, ../home.html locally
+if (IN_APPS_SCRIPT) {
+  google.script.run.withSuccessHandler(url => document.getElementById('homeBtn').href = url).getBaseUrl();
+}
 if (!IN_APPS_SCRIPT) showLocalBanner('תצוגה מקומית: נתונים לדוגמה. הנתונים האמיתיים יופיעו כשהדף ירוץ ב-Apps Script.');
 refresh();
 if (IN_APPS_SCRIPT) setInterval(refresh, 15000);

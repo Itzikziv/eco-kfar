@@ -24,6 +24,8 @@
   #game { position:fixed; inset:0; }
   .ltr { direction:ltr; unicode-bidi:isolate; }
   #saveMsg { color:var(--dim); font-size:14px; min-height:18px; }
+  #overNote { max-width:520px; font-size:18px; line-height:1.6; }
+  #overNote:empty { display:none; }
 </style>
 </head>
 <body>
@@ -31,7 +33,7 @@
 <!-- ===== START SCREEN ===== -->
 <div class="screen active" id="startScreen">
   <h1 id="gameTitle">המשחק שלנו</h1>
-  <p id="gameHelp">כאן מסבירים איך משחקים.</p>
+  <div id="gameHelp" style="max-width:560px;color:var(--dim);line-height:1.6">כאן מסבירים איך משחקים.</div>
   <input id="playerName" maxlength="20" placeholder="השם שלכם">
   <button onclick="startGame()">התחילו</button>
 </div>
@@ -47,6 +49,7 @@
   <h1>המשחק נגמר</h1>
   <p>הניקוד שלכם</p>
   <div id="finalScore" class="ltr" style="font-size:56px;color:var(--accent2)"></div>
+  <div id="overNote"></div>
   <div id="saveMsg"></div>
   <button onclick="startGame()">שחקו שוב</button>
   <a id="backLink" target="_top" style="display:none;color:var(--accent2);margin-top:8px">→ חזרה לארקייד</a>
@@ -85,10 +88,13 @@ function startGame() {
   setupGame(document.getElementById('game'));
 }
 
-function gameOver(score) {
+// gameOver(score)        — ends the game
+// gameOver(score, note)  — optional note shown under the score (text or HTML)
+function gameOver(score, note) {
   if (!gameRunning) return;          // protects against calling it twice
   gameRunning = false;
   document.getElementById('finalScore').textContent = score;
+  document.getElementById('overNote').innerHTML = note || '';
   const msg = document.getElementById('saveMsg');
   show('overScreen');
 
@@ -120,17 +126,29 @@ if (IN_ARCADE) {
    Decode as many encrypted words as you can in 60 seconds.
    This is exactly the char arithmetic from class:
        (char)('a' + (ch - 'a' + shift) % 26)
+   Levels: the first words use a small shift (easy to count),
+   later words use bigger shifts.
    Ideas for students to extend:
-     - harder levels: hide the shift, only give a hint
+     - hide the shift, only give a hint
      - words from our school / CS vocabulary
    ===================================================================== */
 document.getElementById('gameTitle').textContent = 'מרוץ קיסר';
-document.getElementById('gameHelp').textContent  =
-  'כל מילה הוצפנה בצופן קיסר: כל אות זזה קדימה לפי ההזזה שמוצגת. הזיזו אחורה והקלידו את המילה המקורית (באנגלית). 60 שניות!';
+document.getElementById('gameHelp').innerHTML = `
+  <b style="color:var(--text)">המשימה: לגלות את המילה המקורית.</b><br>
+  כל מילה הוצפנה: כל אות זזה <b>קדימה</b> באלף-בית לפי מספר ההזזה. למשל, בהזזה 3:
+  <div dir="ltr" style="margin:10px auto;padding:8px 12px;border:1px solid var(--accent2);border-radius:8px;
+       font-family:'Courier New',monospace;font-size:20px;color:var(--text);max-width:260px">
+    java &nbsp;—(+3)→&nbsp; <span style="color:var(--accent2)">mdyd</span>
+  </div>
+  אתם מקבלים את <span class="ltr" style="color:var(--accent2)">mdyd</span>,
+  זזים 3 אותיות <b>אחורה</b>, ומקלידים <span class="ltr">java</span>.<br>
+  שורת האלף-בית במסך עוזרת לספור. תקועים? אפשר לדלג.<br>
+  <b style="color:var(--text)">60 שניות. כל מילה שפוענחה = נקודה.</b>`;
 
 const WORDS = ['java', 'loop', 'class', 'string', 'random', 'array', 'method', 'boolean',
                'python', 'pixel', 'debug', 'binary', 'syntax', 'object', 'return', 'switch'];
 const RACE_SECONDS = 60;
+const ALPHABET = 'abcdefghijklmnopqrstuvwxyz';
 
 // Same idea as in Java: shift each letter, wrap around with % 26
 function caesar(word, shift) {
@@ -142,42 +160,90 @@ function caesar(word, shift) {
   return out;
 }
 
+// Level by number of words solved: small shifts first
+function randomShift(solved) {
+  const max = solved < 3 ? 3 : solved < 6 ? 6 : 25;
+  return 1 + Math.floor(Math.random() * max);
+}
+
 function setupGame(area) {
   area.innerHTML = `
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
-                justify-content:center;gap:16px;padding:20px;text-align:center">
-      <div id="cShift" class="ltr" style="color:var(--dim);font-size:20px"></div>
+                justify-content:center;gap:14px;padding:60px 12px 20px;text-align:center">
+      <div style="color:var(--dim);font-size:18px">הזזה: <b id="cShiftNum" style="color:var(--text);font-size:24px"></b> · זוזו אחורה באלף-בית</div>
       <div id="cWord" dir="ltr" style="font-size:clamp(36px,10vw,72px);color:var(--accent2);letter-spacing:6px"></div>
+      <div id="cAlpha" dir="ltr" style="display:grid;grid-template-columns:repeat(13,1fr);gap:3px;width:min(420px,100%)"></div>
       <input id="cInput" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="המילה המקורית">
-      <div id="cFeedback" style="min-height:24px;font-size:20px"></div>
+      <div style="display:flex;gap:10px">
+        <button id="cCheck" style="font-size:18px;padding:8px 18px">בדיקה</button>
+        <button id="cSkip"  style="font-size:18px;padding:8px 18px;background:transparent;border:2px solid var(--dim);color:var(--dim)">דלגו</button>
+      </div>
+      <div id="cFeedback" style="min-height:28px;font-size:20px"></div>
     </div>`;
   const input = document.getElementById('cInput');
-  let score = 0, timeLeft = RACE_SECONDS, answer = '';
+  const feedback = document.getElementById('cFeedback');
+  let score = 0, timeLeft = RACE_SECONDS, answer = '', encrypted = '';
+  const solved = [], skipped = [];
+
+  function drawAlphabet() {
+    // highlight the letters that appear in the encrypted word
+    document.getElementById('cAlpha').innerHTML = [...ALPHABET].map(ch => {
+      const on = encrypted.includes(ch);
+      return `<span style="padding:3px 0;border-radius:4px;font-size:15px;` +
+             `background:${on ? 'var(--accent2)' : 'var(--panel)'};color:${on ? '#000' : 'var(--dim)'}">${ch}</span>`;
+    }).join('');
+  }
 
   function newWord() {
     answer = WORDS[Math.floor(Math.random() * WORDS.length)];
-    const shift = 1 + Math.floor(Math.random() * 25);       // 1..25
-    document.getElementById('cWord').textContent = caesar(answer, shift);
-    document.getElementById('cShift').textContent = 'הזזה: ' + shift;
+    const shift = randomShift(solved.length);
+    encrypted = caesar(answer, shift);
+    document.getElementById('cWord').textContent = encrypted;
+    document.getElementById('cShiftNum').textContent = shift;
+    drawAlphabet();
     input.value = '';
+    input.focus();
   }
 
+  function guess() { return input.value.trim().toLowerCase(); }
+
+  // correct answers are accepted while typing
   input.addEventListener('input', () => {
-    if (input.value.trim().toLowerCase() === answer) {
+    if (guess() === answer) {
       score++;
-      document.getElementById('cFeedback').textContent = '✔ ' + answer;
+      solved.push(answer);
+      feedback.innerHTML = '<span style="color:#1db954">✔ נכון! ' + answer + '</span>';
       hud('פוענחו: ' + score, 'זמן: ' + timeLeft);
       newWord();
     }
   });
+  function check() {
+    if (!guess()) return;
+    if (guess() !== answer) feedback.innerHTML = '<span style="color:#ff6b6b">עוד לא… בדקו שזזתם אחורה, לא קדימה</span>';
+  }
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+  document.getElementById('cCheck').addEventListener('pointerdown', e => { e.preventDefault(); check(); });
+  document.getElementById('cSkip').addEventListener('pointerdown', e => {
+    e.preventDefault();
+    skipped.push(answer);
+    feedback.innerHTML = '<span class="ltr">' + encrypted + ' → ' + answer + '</span> (דילגתם)';
+    newWord();
+  });
 
   newWord();
-  input.focus();
   hud('פוענחו: 0', 'זמן: ' + timeLeft);
   const timer = setInterval(() => {
     timeLeft--;
     hud('פוענחו: ' + score, 'זמן: ' + timeLeft);
-    if (timeLeft <= 0) { clearInterval(timer); gameOver(score); }
+    if (timeLeft <= 0) {
+      clearInterval(timer);
+      let note = '⏰ נגמר הזמן! המילה האחרונה: <span class="ltr" style="color:var(--accent2)">' +
+                 encrypted + ' → ' + answer + '</span>';
+      if (solved.length) note += '<br>פענחתם: <span class="ltr">' + solved.join(', ') + '</span>';
+      if (skipped.length) note += '<br>דילגתם על: <span class="ltr">' + skipped.join(', ') + '</span>';
+      if (!solved.length) note += '<br>טיפ: התחילו מהאות הראשונה וספרו אחורה בשורת האלף-בית.';
+      gameOver(score, note);
+    }
   }, 1000);
 }
 </script>

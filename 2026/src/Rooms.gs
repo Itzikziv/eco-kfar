@@ -12,5 +12,7 @@
  */
 const ROOMS = [
   { id: 'caesar',     title: 'המעבדה המוצפנת', group: 'דוגמה' },
-  { id: 'java-trace', title: 'מסוף ה-Java',    group: 'דוגמה' }
+  { id: 'java-trace', title: 'מסוף ה-Java',    group: 'דוגמה' },
+  { id: 'binary',     title: 'האות מהלוויין',  group: 'דוגמה' },
+  { id: 'sum-lock',   title: 'מנעול הסכום',    group: 'דוגמה' }
 ];

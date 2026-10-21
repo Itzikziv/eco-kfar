@@ -33,6 +33,26 @@ student/               templates the groups start from (not pushed)
   room-template.html
 ```
 
+## The examples
+
+| Type | id | What it shows | Answer · fragment |
+|---|---|---|---|
+| Game | `reaction` | Timers and `Math.random()`. Lower score wins. | |
+| Game | `caesar` | Char arithmetic, levels, feedback at game over | |
+| Game | `bugs` | A game loop: move, collide, draw | |
+| Game | `memory` | Shuffling, pairs, ASCII codes. Lower score wins. | |
+| Room | `caesar` | Unknown-shift Caesar cipher | `BYTE` · `7` |
+| Room | `java-trace` | "What does this Java print?" | `B6D12F` · `K` |
+| Room | `binary` | Binary → ASCII | `GREEN` · `3` |
+| Room | `sum-lock` | Write a loop to find the number | `1189524` · `Z` |
+
+With the four example rooms, the master code is `7K3Z`.
+The example answers are written in `Data.gs`, so they're public in this repo.
+That's fine for demos; real rooms' answers go only in the sheet.
+
+After pulling new example rooms, run `setup()` again in the editor:
+it adds the missing example answers and changes nothing else.
+
 ## One-time setup (teacher)
 
 1. **Install clasp** (needs Node.js): `npm install -g @google/clasp`
@@ -93,7 +113,7 @@ The repo is the only source. Anything changed directly in the Apps Script editor
 - **10th grade:** on github.com, open the folder → "Add file" → "Upload files" → "Propose changes",
   which opens a pull request for them. No git commands needed.
 - Group rules: one file per game or room, only change the part below *YOUR GAME / ROOM STARTS HERE*,
-  call `gameOver(score)` once, use `pointerdown` (phones), no external images.
+  call `gameOver(score)` once (or `gameOver(score, note)` to show a message under the score), use `pointerdown` (phones), no external images.
 
 ## Opening the pages locally
 

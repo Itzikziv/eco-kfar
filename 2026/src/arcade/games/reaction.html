@@ -24,6 +24,8 @@
   #game { position:fixed; inset:0; }
   .ltr { direction:ltr; unicode-bidi:isolate; }
   #saveMsg { color:var(--dim); font-size:14px; min-height:18px; }
+  #overNote { max-width:520px; font-size:18px; line-height:1.6; }
+  #overNote:empty { display:none; }
 </style>
 </head>
 <body>
@@ -31,7 +33,7 @@
 <!-- ===== START SCREEN ===== -->
 <div class="screen active" id="startScreen">
   <h1 id="gameTitle">המשחק שלנו</h1>
-  <p id="gameHelp">כאן מסבירים איך משחקים.</p>
+  <div id="gameHelp" style="max-width:560px;color:var(--dim);line-height:1.6">כאן מסבירים איך משחקים.</div>
   <input id="playerName" maxlength="20" placeholder="השם שלכם">
   <button onclick="startGame()">התחילו</button>
 </div>
@@ -47,6 +49,7 @@
   <h1>המשחק נגמר</h1>
   <p>הניקוד שלכם</p>
   <div id="finalScore" class="ltr" style="font-size:56px;color:var(--accent2)"></div>
+  <div id="overNote"></div>
   <div id="saveMsg"></div>
   <button onclick="startGame()">שחקו שוב</button>
   <a id="backLink" target="_top" style="display:none;color:var(--accent2);margin-top:8px">→ חזרה לארקייד</a>
@@ -85,10 +88,13 @@ function startGame() {
   setupGame(document.getElementById('game'));
 }
 
-function gameOver(score) {
+// gameOver(score)        — ends the game
+// gameOver(score, note)  — optional note shown under the score (text or HTML)
+function gameOver(score, note) {
   if (!gameRunning) return;          // protects against calling it twice
   gameRunning = false;
   document.getElementById('finalScore').textContent = score;
+  document.getElementById('overNote').innerHTML = note || '';
   const msg = document.getElementById('saveMsg');
   show('overScreen');
 

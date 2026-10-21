@@ -25,5 +25,21 @@ const GAMES = [
     icon: '🔐',
     description: 'פענחו כמה שיותר מילים מוצפנות ב-60 שניות',
     lowerIsBetter: false
+  },
+  {
+    id: 'bugs',
+    title: 'צייד הבאגים',
+    group: 'דוגמה',
+    icon: '🐛',
+    description: 'תפסו באגים, התחמקו מפצצות. 3 חיים.',
+    lowerIsBetter: false
+  },
+  {
+    id: 'memory',
+    title: 'זיכרון ASCII',
+    group: 'דוגמה',
+    icon: '🃏',
+    description: 'התאימו כל תו לקוד ה-ASCII שלו',
+    lowerIsBetter: true
   }
 ];

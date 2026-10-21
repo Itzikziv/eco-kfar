@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  /* ===== Shared arcade look. Change colors if you like. ===== */
+  :root { --bg:#0d0b1f; --panel:#1a1640; --accent:#ff3cac; --accent2:#2bd2ff; --text:#f2f0ff; --dim:#9a94c9; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text);
+               font-family:"Rubik", Arial, sans-serif; user-select:none; -webkit-user-select:none; }
+  .screen { position:fixed; inset:0; display:none; flex-direction:column; align-items:center;
+            justify-content:center; text-align:center; padding:20px; gap:14px; }
+  .screen.active { display:flex; }
+  h1 { color:var(--accent); text-shadow:0 0 10px var(--accent); font-size:clamp(28px,7vw,56px); margin:0; }
+  p  { max-width:520px; color:var(--dim); margin:0; }
+  input { font:inherit; font-size:20px; padding:10px; border-radius:8px; border:2px solid var(--accent2);
+          background:var(--panel); color:var(--text); text-align:center; width:240px; }
+  button { font:inherit; font-size:22px; font-weight:bold; padding:12px 28px; border:none; border-radius:10px;
+           background:var(--accent); color:#fff; cursor:pointer; }
+  #hud { position:fixed; top:0; left:0; right:0; display:flex; justify-content:space-between;
+         padding:10px 16px; font-size:20px; z-index:5; pointer-events:none; }
+  #game { position:fixed; inset:0; }
+  .ltr { direction:ltr; unicode-bidi:isolate; }
+  #saveMsg { color:var(--dim); font-size:14px; min-height:18px; }
+  #overNote { max-width:520px; font-size:18px; line-height:1.6; }
+  #overNote:empty { display:none; }
+</style>
+</head>
+<body>
+
+<!-- ===== START SCREEN ===== -->
+<div class="screen active" id="startScreen">
+  <h1 id="gameTitle">המשחק שלנו</h1>
+  <div id="gameHelp" style="max-width:560px;color:var(--dim);line-height:1.6">כאן מסבירים איך משחקים.</div>
+  <input id="playerName" maxlength="20" placeholder="השם שלכם">
+  <button onclick="startGame()">התחילו</button>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div class="screen" id="gameScreen">
+  <div id="hud"><span id="hudLeft"></span><span id="hudRight"></span></div>
+  <div id="game"></div>
+</div>
+
+<!-- ===== GAME OVER SCREEN ===== -->
+<div class="screen" id="overScreen">
+  <h1>המשחק נגמר</h1>
+  <p>הניקוד שלכם</p>
+  <div id="finalScore" class="ltr" style="font-size:56px;color:var(--accent2)"></div>
+  <div id="overNote"></div>
+  <div id="saveMsg"></div>
+  <button onclick="startGame()">שחקו שוב</button>
+  <a id="backLink" target="_top" style="display:none;color:var(--accent2);margin-top:8px">→ חזרה לארקייד</a>
+</div>
+
+<script>
+/* =====================================================================
+   GAME_ID: a short name for your game, lowercase, no spaces.
+   The file goes in the repo as  2026/src/arcade/games/<GAME_ID>.html
+   ===================================================================== */
+const GAME_ID = 'bugs';
+
+/* =====================================================================
+   SHELL — you don't need to change this part
+   ===================================================================== */
+// true when running inside the teacher's Apps Script arcade,
+// false when you open this file locally by double-clicking it
+const IN_ARCADE = typeof google !== 'undefined' && !!(google.script && google.script.run);
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function hud(left, right) {
+  document.getElementById('hudLeft').textContent = left ?? '';
+  document.getElementById('hudRight').textContent = right ?? '';
+}
+function playerName() {
+  return document.getElementById('playerName').value.trim() || 'אנונימי';
+}
+let gameRunning = false;
+
+function startGame() {
+  show('gameScreen');
+  gameRunning = true;
+  setupGame(document.getElementById('game'));
+}
+
+// gameOver(score)        — ends the game
+// gameOver(score, note)  — optional note shown under the score (text or HTML)
+function gameOver(score, note) {
+  if (!gameRunning) return;          // protects against calling it twice
+  gameRunning = false;
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('overNote').innerHTML = note || '';
+  const msg = document.getElementById('saveMsg');
+  show('overScreen');
+
+  if (!IN_ARCADE) {                  // opened by double-click on your computer
+    msg.textContent = 'בדיקה מקומית: הניקוד לא נשמר. (בארקייד הוא יישמר.)';
+    return;
+  }
+  msg.textContent = 'שומר ניקוד…';
+  google.script.url.getLocation(loc => {
+    const id = loc.parameter.game || GAME_ID;
+    google.script.run
+      .withSuccessHandler(() => msg.textContent = 'הניקוד נשמר בארקייד ✔')
+      .withFailureHandler(e => msg.textContent = 'השמירה נכשלה: ' + e.message)
+      .submitScore(id, playerName(), score);
+  });
+}
+
+// Inside the arcade, show a link back to the lobby
+if (IN_ARCADE) {
+  google.script.run.withSuccessHandler(url => {
+    const a = document.getElementById('backLink');
+    a.href = url + '?page=arcade';
+    a.style.display = 'inline-block';
+  }).getBaseUrl();
+}
+
+/* =====================================================================
+   GAME: BUG HUNTER  (example game — medium level)
+   Move the net left and right. Catch the bugs, avoid the bombs.
+   This example shows a GAME LOOP:
+     every frame (~60 times a second) we
+       1. move everything a little
+       2. check collisions
+       3. draw
+   Ideas for students to extend:
+     - a golden bug worth 5 points
+     - a power-up that makes the net wider
+   ===================================================================== */
+document.getElementById('gameTitle').textContent = 'צייד הבאגים';
+document.getElementById('gameHelp').innerHTML = `
+  <b style="color:var(--text)">תפסו כמה שיותר באגים 🐛 ואל תתפסו פצצות 💣</b><br>
+  הזיזו את הרשת: גרירה באצבע או בעכבר, או החצים במקלדת.<br>
+  יש לכם 3 חיים. כל פצצה שנתפסת מורידה חיים, והמשחק נעשה מהיר יותר עם הזמן.`;
+
+const NET_WIDTH = 110;
+const ITEM_SIZE = 40;
+const LIVES = 3;
+
+function setupGame(area) {
+  area.innerHTML = '';
+  area.style.touchAction = 'none';            // so dragging doesn't scroll the page
+
+  const net = document.createElement('div');
+  net.textContent = '🥅';
+  net.style.cssText = `position:absolute;bottom:24px;width:${NET_WIDTH}px;height:44px;font-size:44px;
+                       text-align:center;line-height:44px;border-bottom:4px solid var(--accent2);`;
+  area.appendChild(net);
+
+  let netX = window.innerWidth / 2 - NET_WIDTH / 2;
+  let score = 0, lives = LIVES, speed = 2.5, spawnEvery = 900, lastSpawn = 0;
+  let items = [];                             // {el, x, y, bomb}
+  let keys = {};
+  let lastTime = performance.now();
+
+  // ----- input -----
+  function moveTo(clientX) { netX = clientX - NET_WIDTH / 2; }
+  area.addEventListener('pointerdown', e => moveTo(e.clientX));
+  area.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'mouse') moveTo(e.clientX); });
+  const onKey = e => { keys[e.key] = e.type === 'keydown'; };
+  window.addEventListener('keydown', onKey);
+  window.addEventListener('keyup', onKey);
+
+  function spawn() {
+    const bomb = Math.random() < 0.25;
+    const el = document.createElement('div');
+    el.textContent = bomb ? '💣' : '🐛';
+    el.style.cssText = `position:absolute;font-size:${ITEM_SIZE}px;line-height:1;pointer-events:none;`;
+    area.appendChild(el);
+    items.push({ el, bomb, x: Math.random() * (window.innerWidth - ITEM_SIZE), y: 40 });
+  }
+
+  function showHud() { hud('נתפסו: ' + score, '❤️'.repeat(lives)); }
+
+  // ----- the game loop -----
+  function frame(now) {
+    if (!gameRunning) return;
+    const dt = Math.min((now - lastTime) / 16.7, 3);   // 1.0 = one frame at 60fps
+    lastTime = now;
+
+    // 1. move
+    if (keys.ArrowLeft)  netX -= 9 * dt;
+    if (keys.ArrowRight) netX += 9 * dt;
+    netX = Math.max(0, Math.min(window.innerWidth - NET_WIDTH, netX));
+    net.style.left = netX + 'px';
+
+    if (now - lastSpawn > spawnEvery) { spawn(); lastSpawn = now; }
+    speed += 0.0015 * dt;                              // slowly faster
+    spawnEvery = Math.max(350, spawnEvery - 0.15 * dt);
+
+    const netTop = window.innerHeight - 24 - 44;
+    items = items.filter(it => {
+      it.y += speed * dt;
+      // 2. collision: the item's bottom reached the net, and it's above the net horizontally
+      const centerX = it.x + ITEM_SIZE / 2;
+      const caught = it.y + ITEM_SIZE >= netTop && it.y < netTop + 20 &&
+                     centerX > netX && centerX < netX + NET_WIDTH;
+      if (caught) {
+        if (it.bomb) { lives--; flash('#c0263d'); } else { score++; }
+        showHud();
+        it.el.remove();
+        return false;
+      }
+      if (it.y > window.innerHeight) { it.el.remove(); return false; }   // missed: no penalty
+      // 3. draw
+      it.el.style.left = it.x + 'px';
+      it.el.style.top = it.y + 'px';
+      return true;
+    });
+
+    if (lives <= 0) {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKey);
+      gameOver(score, score >= 30 ? '🏆 צייד מקצועי!' : 'טיפ: עדיף לפספס באג מאשר לתפוס פצצה.');
+      return;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function flash(color) {
+    area.style.background = color;
+    setTimeout(() => area.style.background = '', 120);
+  }
+
+  showHud();
+  requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>

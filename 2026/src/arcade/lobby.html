@@ -31,10 +31,14 @@
     .num { direction:ltr; unicode-bidi:isolate; }
     .empty { color:var(--dim); font-style:italic; }
     .meta { color:var(--dim); font-size:13px; margin-top:8px; text-align:left; }
+    .homeBtn { display:inline-block; margin-bottom:8px; text-decoration:none; font-weight:700;
+               font-size:16px; padding:8px 14px; border-radius:10px; border:2px solid currentColor; background:rgba(0,0,0,.5); }
+    .homeBtn:hover { filter:brightness(1.2); }
     #status { text-align:center; color:var(--dim); margin-top:20px; font-size:13px; }
   </style>
 </head>
 <body>
+  <a class="homeBtn" id="homeBtn" href="../home.html" target="_top" style="color:var(--cyan)">⌂ לדף הבית</a>
   <header>
     <img id="logo" alt="">
     <h1>★ הארקייד של בית הספר ★</h1>
@@ -95,7 +99,11 @@
     { id:'reaction', title:'זמן תגובה', group:'קבוצה 3', icon:'⚡', description:'חכו לירוק ולחצו הכי מהר',
       url:'games/reaction.html', plays:12, top:[{ player:'דנה', score:231 }, { player:'Omer', score:265 }] },
     { id:'caesar', title:'מרוץ קיסר', group:'קבוצה 5', icon:'🔐', description:'פענחו מילים מוצפנות',
-      url:'games/caesar.html', plays:4, top:[] }
+      url:'games/caesar.html', plays:4, top:[] },
+    { id:'bugs', title:'צייד הבאגים', group:'קבוצה 1', icon:'🐛', description:'תפסו באגים, התחמקו מפצצות',
+      url:'games/bugs.html', plays:7, top:[{ player:'Noa', score:42 }] },
+    { id:'memory', title:'זיכרון ASCII', group:'קבוצה 2', icon:'🃏', description:'התאימו כל תו לקוד ה-ASCII שלו',
+      url:'games/memory.html', plays:3, top:[{ player:'יואב', score:9 }] }
   ];
 
   function refresh() {
@@ -108,6 +116,11 @@
       .getArcadeData();
   }
 
+
+  // "Home" button: the web app's home page in Apps Script, ../home.html locally
+  if (IN_APPS_SCRIPT) {
+    google.script.run.withSuccessHandler(url => document.getElementById('homeBtn').href = url).getBaseUrl();
+  }
   if (!IN_APPS_SCRIPT) showLocalBanner('תצוגה מקומית: נתונים לדוגמה. הנתונים האמיתיים יופיעו כשהדף ירוץ ב-Apps Script.');
   refresh();
   if (IN_APPS_SCRIPT) setInterval(refresh, 15000);
